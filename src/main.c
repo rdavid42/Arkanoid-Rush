@@ -1,3 +1,14 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   main.c                                             :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: rdavid <rdavid@student.42.fr>              +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2015/05/02 21:25:50 by rdavid            #+#    #+#             */
+/*   Updated: 2015/05/02 21:25:50 by rdavid           ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
 
 #include <stdio.h>
 #include <fcntl.h>
@@ -53,6 +64,12 @@ void		gl_disable_2d(void)
 	glEnable(GL_DEPTH_TEST);
 }
 
+void		set_vec(t_vec *v, float x, float y)
+{
+	v->x = x;
+	v->y = y;
+}
+
 void		init_player(t_core *c)
 {
 	c->player.lives = 3;
@@ -68,9 +85,10 @@ void		init_ui(t_core *c)
 
 void		init_ball(t_core *c)
 {
-	c->ball.r = 5.0f;
-	c->ball.x = c->player.x + PLAYER_WIDTH / 2;
-	c->ball.y = c->player.y - c->ball.r;
+	c->ball.c.r = BALL_RADIUS;
+	c->ball.c.p.x = c->player.x + PLAYER_WIDTH / 2;
+	c->ball.c.p.y = c->player.y - c->ball.c.r;
+	set_vec(&c->ball.v, BALL_SPEED, -BALL_SPEED);
 }
 
 void		init_color(float *c, float r, float g, float b)
@@ -183,12 +201,8 @@ void		fill_level_line(t_bloc *bline, char *line)
 	int					i;
 	int					id;
 	static float const	c[NB][3] =
-	{
-		{ 1.0f, 0.0f, 0.0f },
-		{ 0.0f, 1.0f, 0.0f },
-		{ 0.0f, 0.0f, 1.0f }
-	};
 
+	{ { 1.0f, 0.0f, 0.0f }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 0.0f, 1.0f } };
 	i = -1;
 	while (++i < GRID_WIDTH)
 	{
@@ -233,6 +247,82 @@ void		draw_bloc(t_bloc *b, float x, float y)
 	glVertex2f(x + BLOC_WIDTH - 2, y + BLOC_HEIGHT - 2);
 	glVertex2f(x + 1, y + BLOC_HEIGHT - 2);
 	glEnd();
+}
+
+void		draw_bloc_borders(float x, float y)
+{
+	glColor3f(1.0f, 1.0f, 1.0f);
+	glBegin(GL_LINES);
+	glVertex2f(x, y);
+	glVertex2f(x + BLOC_WIDTH, y);
+	glVertex2f(x + BLOC_WIDTH, y);
+	glVertex2f(x + BLOC_WIDTH, y + BLOC_HEIGHT);
+	glVertex2f(x + BLOC_WIDTH, y + BLOC_HEIGHT);
+	glVertex2f(x, y + BLOC_HEIGHT);
+	glVertex2f(x, y + BLOC_HEIGHT);
+	glVertex2f(x, y);
+	glEnd();
+}
+
+int			intersect_up(t_circle *c, float x, float y, float s)
+{
+	if (c->p.x >= x && c->p.x <= x + s
+		&& c->p.y + c->r > y && c->p.y - c->r < y)
+		return (1);
+	return (0);
+}
+
+int			intersect_down(t_circle *c, float x, float y, float s)
+{
+	if (c->p.x >= x && c->p.x <= x + s
+		&& c->p.y + c->r < y && c->p.y - c->r > y)
+		return (1);
+	return (0);
+}
+
+int			intersect_left(t_circle *c, float x, float y, float s)
+{
+	if (c->p.y >= y && c->p.y <= y + s
+		&& c->p.x + c->r > x && c->p.x - c->r < x)
+		return (1);
+	return (0);
+}
+
+int			intersect_right(t_circle *c, float x, float y, float s)
+{
+	if (c->p.y >= y && c->p.y <= y + s
+		&& c->p.x + c->r < x && c->p.x - c->r > x)
+		return (1);
+	return (0);
+}
+
+int			intersect_block(t_circle *c, float x, float y, float s)
+{
+	if (intersect_up(c, x, y, s)
+		|| intersect_down(c, x, y, s)
+		|| intersect_left(c, x, y, s)
+		|| intersect_right(c, x, y, s))
+		return (1);
+	return (0);
+}
+/*
+void		new_ball_direction(t_circle *c, float x, float y)
+{
+
+}
+*/
+void		update_ball(t_core *c)
+{
+	int					x;
+	int					y;
+
+	x = c->ball.c.p.x / BLOC_WIDTH - 1;
+	y = c->ball.c.p.y / BLOC_HEIGHT - 1;
+/*	dprintf(2, "x: %d, y: %d\n", x, y);
+	if (x > 0 && y > 0 && x < GRID_WIDTH && y < GRID_HEIGHT)
+		draw_bloc_borders(LEVEL_X + x * BLOC_WIDTH, LEVEL_Y + y * BLOC_HEIGHT);*/
+	c->ball.c.p.x += c->ball.v.x;
+	c->ball.c.p.y += c->ball.v.y;
 }
 
 void		draw_current_level(t_core *c)
@@ -288,6 +378,17 @@ void		draw_ui(t_core *c)
 	draw_borders(c->b, 3);
 }
 
+void		draw_ball(t_ball *b)
+{
+	glColor3f(1.0f, 1.0f, 1.0f);
+	glBegin(GL_QUADS);
+	glVertex2f(b->c.p.x - b->c.r, b->c.p.y - b->c.r);
+	glVertex2f(b->c.p.x + b->c.r, b->c.p.y - b->c.r);
+	glVertex2f(b->c.p.x + b->c.r, b->c.p.y + b->c.r);
+	glVertex2f(b->c.p.x - b->c.r, b->c.p.y + b->c.r);
+	glEnd();
+}
+
 int			load_level(t_core *c, char const *name, int l)
 {
 	int		fd;
@@ -319,8 +420,9 @@ int			load_level(t_core *c, char const *name, int l)
 int			init_levels(t_core *c)
 {
 	int						i;
-	static char const		*n[NLEVEL] = { "levels/1" };
+	static char const		*n[NLEVEL] =
 
+	{ "levels/1", "levels/2", "levels/3" };
 	if (!(c->levels = (t_level *)malloc(sizeof(t_level) * NLEVEL)))
 		return (0);
 	i = -1;
@@ -336,21 +438,46 @@ int			init_levels(t_core *c)
 	return (1);
 }
 
+void		inputs(t_core *c)
+{
+	if (glfwGetKey(c->window, GLFW_KEY_LEFT) == GLFW_PRESS)
+	{
+		if (c->player.x >= LEVEL_X + PLAYER_SPEED)
+			c->player.x -= PLAYER_SPEED;
+	}
+	if (glfwGetKey(c->window, GLFW_KEY_RIGHT) == GLFW_PRESS)
+	{
+		if (c->player.x + PLAYER_WIDTH <= LEVEL_X + LEVEL_WIDTH - PLAYER_SPEED)
+			c->player.x += PLAYER_SPEED;
+	}
+}
+
+void		update(t_core *c)
+{
+	update_ball(c);
+}
+
+void		render(t_core *c)
+{
+	draw_ui(c);
+	draw_current_level(c);
+	draw_player(&c->player);
+	draw_ball(&c->ball);
+}
+
 void		loop(t_core *c)
 {
+	gl_enable_2d(0, 0);
 	while (!glfwWindowShouldClose(c->window))
 	{
 		glClear(GL_COLOR_BUFFER_BIT);
-
-		gl_enable_2d(0, 0);
-		draw_ui(c);
-		draw_current_level(c);
-		draw_player(&c->player);
-		gl_disable_2d();
-
+		inputs(c);
+		update(c);
+		render(c);
 		glfwSwapBuffers(c->window);
 		glfwPollEvents();
 	}
+	gl_disable_2d();
 }
 
 int			main(int argc, char **argv)

@@ -13,22 +13,26 @@ HEADER		=	-I./$(INC_PATH) -I./glfw/include
 FLAGS		=	-Ofast -g -Wall -Wextra -Werror
 VARS		=	-DDEBUG
 
+GLFW		=	./glfw/src/libglfw3.a
+
 ifeq "$(PLATFORM)" "Darwin" #MAC
-LIBS		=	./glfw/src/libglfw3.a -lm -framework OpenGL -framework Cocoa -framework IOKit -framework CoreVideo
+LIBS		=	$(GLFW) -lm -framework OpenGL -framework Cocoa -framework IOKit -framework CoreVideo
 else ifeq "$(PLATFORM)" "Linux" #LINUX
-LIBS		=	./glfw/src/libglfw3.a -lGL -lXrandr -lXi -lXrender -ldrm -lXdamage -lXxf86vm -lXext -lX11 -lpthread -lXcursor -lm -lXinerama
+LIBS		=	$(GLFW) -lGL -lXrandr -lXi -lXrender -ldrm -lXdamage -lXxf86vm -lXext -lX11 -lpthread -lXcursor -lm -lXinerama
 else ifeq "$(PLATFORM)" "Win32" #WINDOWS
-LIBS		=	./glfw/src/libglfw3.a -lopengl32 -lgdi32 -luser32 -lkernel32
+LIBS		=	$(GLFW) -lopengl32 -lgdi32 -luser32 -lkernel32
 endif
 
 NAME		=	arkanoid
 
 all: $(NAME)
 
-$(NAME): $(OBJS)
+$(NAME): $(GLFW) $(OBJS)
+	@$(CC) $(FLAGS) $(VARS) $(HEADER) -o $(NAME) $(OBJS) $(LIBS)
+
+$(GLFW):
 	@cmake glfw/CMakeLists.txt
 	@make -C glfw/
-	@$(CC) $(FLAGS) $(VARS) $(HEADER) -o $(NAME) $(OBJS) $(LIBS)
 
 $(patsubst %, $(OBJ_PATH)%,%.o): $(SRC_PATH)$(notdir %.c)
 	@git submodule init && git submodule update

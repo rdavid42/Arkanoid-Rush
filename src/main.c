@@ -55,7 +55,6 @@ void		gl_disable_2d(void)
 
 void		init_player(t_core *c)
 {
-	dprintf(2, "%d\n", WINDOW_WIDTH);
 	c->player.lives = 3;
 	c->player.x = (WINDOW_WIDTH / 2) - (PLAYER_WIDTH / 2);
 	c->player.y = WINDOW_HEIGHT - BLOC_HEIGHT * 2;

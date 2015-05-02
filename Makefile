@@ -26,12 +26,12 @@ NAME		=	arkanoid
 all: $(NAME)
 
 $(NAME): $(OBJS)
-	@git submodule init && git submodule update
 	@cmake glfw/CMakeLists.txt
 	@make -C glfw/
 	@$(CC) $(FLAGS) $(VARS) $(HEADER) -o $(NAME) $(OBJS) $(LIBS)
 
 $(patsubst %, $(OBJ_PATH)%,%.o): $(SRC_PATH)$(notdir %.c)
+	@git submodule init && git submodule update
 	@mkdir -p $(OBJ_PATH)
 	@$(CC) -c $(FLAGS) $(VARS) $(HEADER) "$<" -o "$@"
 

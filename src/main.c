@@ -127,6 +127,23 @@ void		draw_text(t_font *f, char const *t, float x, float y)
 	glEnd();
 }
 
+void		release_levels(t_core *c)
+{
+	int		i;
+	int		j;
+
+	j = -1;
+	while (++j < NLEVEL)
+	{
+		i = -1;
+		while (++i < GRID_HEIGHT)
+			free(c->levels[j].grid[i]);
+		free(c->levels[j].grid);
+		c->levels[j].grid = NULL;
+	}
+	free(c->levels);
+}
+
 void		release_resources(t_core *c)
 {
 	glfwDestroyWindow(c->window);
@@ -241,16 +258,20 @@ int			init_font(t_core *c)
 	return (1);
 }
 
-void		init_core(t_core *c)
+int			init_core(t_core *c)
 {
 	c->score = 0;
 	c->cl = 0;
 	c->lives = INI_LIVES;
 	c->game_over = 0;
+	c->win = 0;
 	init_player(c);
 	init_ui(c);
 	init_ball(c);
 	init_borders(c);
+	if (!init_levels(c))
+		return (0);
+	return (1);
 }
 
 int			init(t_core *c)
@@ -271,7 +292,7 @@ int			init(t_core *c)
 	init_core(c);
 	if (!init_font(c))
 		return (0);
-	if (!init_levels(c))
+	if (!init_core(c))
 		return (0);
 	return (1);
 }
@@ -314,7 +335,7 @@ int			check_line_errors(char *line)
 	return (1);
 }
 
-void		fill_level_line(t_bloc *bline, char *line)
+void		fill_level_line(t_level *l, t_bloc *bline, char *line)
 {
 	int					i;
 
@@ -322,7 +343,10 @@ void		fill_level_line(t_bloc *bline, char *line)
 	while (++i < GRID_WIDTH)
 	{
 		if (line[i] != '.')
+		{
 			bline[i].life = line[i] - 48;
+			l->current_blocks++;
+		}
 		else
 			bline[i].life = 0;
 	}
@@ -416,8 +440,13 @@ void		new_ball_direction_paddle(t_ball *b)
 int			check_block_return(t_bloc **g, t_core *c, int px, int py)
 {
 	g[py][px].life--;
-	c->score = !g[py][px].life
-				? c->score + 100 : c->score + 150;
+	if (!g[py][px].life)
+	{
+		c->score += 100;
+		c->levels[c->cl].current_blocks--;
+	}
+	else
+		c->score += 150;
 	return (1);
 }
 int			check_block(int x, int y, int i, t_core *c)
@@ -487,8 +516,6 @@ void		update_ball(t_core *c)
 	{ {-1, 0}, {1, 0}, {0, 1}, {0, -1} };
 	x = c->ball.c.p.x / BLOC_WIDTH - 1;
 	y = c->ball.c.p.y / BLOC_HEIGHT - 1;
-	// glColor3f(1.0f, 0.0f, 1.0f);
-	// draw_bloc_borders(LEVEL_X + (x) * BLOC_WIDTH, LEVEL_Y + (y) * BLOC_HEIGHT);
 	if ((r = check_platform(c)) != -1)
 		new_ball_direction_paddle(&c->ball);
 	else if (itrs_v(&c->ball.c, LEVEL_X + LEVEL_WIDTH, LEVEL_Y, LEVEL_HEIGHT))
@@ -587,6 +614,7 @@ int			load_level(t_core *c, char const *name, int l)
 
 	if (!allocate_level(&c->levels[l]))
 		return (0);
+	c->levels[l].current_blocks = 0;
 	if ((fd = open(name, O_RDONLY, 0755)) == -1)
 		return (0);
 	i = -1;
@@ -601,7 +629,7 @@ int			load_level(t_core *c, char const *name, int l)
 			return (!close(fd));
 		if (!check_line_errors(buf))
 			return (close(fd));
-		fill_level_line(c->levels[l].grid[i], buf);
+		fill_level_line(&c->levels[l], c->levels[l].grid[i], buf);
 	}
 	return (!close(fd));
 }
@@ -640,14 +668,17 @@ void		inputs(t_core *c)
 			c->player.x += PLAYER_SPEED;
 	}
 	if (c->game_over && glfwGetKey(c->window, GLFW_KEY_SPACE) == GLFW_PRESS)
+	{
+		release_levels(c);
 		init_core(c);
+	}
 }
 
 void		update(t_core *c)
 {
 	int		i;
 
-	if (!c->game_over)
+	if (!c->game_over || c->win)
 	{
 		i = 0;
 		while (++i < 5)
@@ -660,12 +691,28 @@ void		update(t_core *c)
 		}
 		if (c->lives <= 0)
 			c->game_over = 1;
+		if (c->levels[c->cl].current_blocks <= 0)
+			c->cl++;
+		if (c->cl >= NLEVEL - 1)
+			c->win = 1;
 	}
 }
 
 void		draw_game_over(t_core *c)
 {
 	char const	*g = "GAME OVER ! PRESS SPACE OR ESCAPE";
+	int const	l = slen(g);
+	int const	w = l * (c->rdf->cw * c->rdf->s) + (l - 2) * c->rdf->p;
+	int const	h = c->rdf->ch * c->rdf->s;
+
+	(void)c;
+	draw_text(c->rdf, g,
+			WINDOW_WIDTH / 2 - w / 2, WINDOW_HEIGHT / 2 - h / 2);
+}
+
+void		draw_win(t_core *c)
+{
+	char const	*g = "YOU WIN ! PRESS SPACE OR ESCAPE";
 	int const	l = slen(g);
 	int const	w = l * (c->rdf->cw * c->rdf->s) + (l - 2) * c->rdf->p;
 	int const	h = c->rdf->ch * c->rdf->s;
@@ -683,6 +730,8 @@ void		render(t_core *c)
 	draw_ball(&c->ball);
 	if (c->game_over)
 		draw_game_over(c);
+	else if (c->win)
+		draw_win(c);
 }
 
 void		loop(t_core *c)
@@ -708,6 +757,8 @@ int			main(int argc, char **argv)
 		return (0);
 	loop(&c);
 	release_resources(&c);
+	release_levels(&c);
+	free(c.rdf);
 	(void)argc;
 	(void)argv;
 	return (1);

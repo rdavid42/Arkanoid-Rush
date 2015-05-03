@@ -68,6 +68,7 @@ typedef struct			s_level
 	float				x;
 	float				y;
 	t_bloc				**grid;
+	int					current_blocks;
 }						t_level;
 
 typedef struct			s_player
@@ -100,7 +101,7 @@ typedef struct			s_border
 
 typedef struct			s_core
 {
-	int					current_blocks;
+	int					win;
 	int					game_over;
 	int					lives;
 	t_font				*rdf;
@@ -125,7 +126,7 @@ int						init_levels(t_core *c);
 void					init_player(t_core *c);
 void					init_ui(t_core *c);
 void					init_ball(t_core *c);
-void					fill_level_line(t_bloc *bline, char *line);
+void					fill_level_line(t_level *l, t_bloc *bline, char *line);
 int						check_line_errors(char *line);
 int						allocate_level(t_level *l);
 float					op_abs(float v);

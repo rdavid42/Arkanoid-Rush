@@ -3,37 +3,28 @@
 
 # include <GLFW/glfw3.h>
 
-# define PI				(3.14159265)
-
-# define BLOC1			(1)
-# define BLOC2			(2)
-# define BLOC3			(3)
-
-# define NB				(3)
-
-# define NLEVEL			(3)
-
-# define GRID_WIDTH		(15)
-# define GRID_HEIGHT	(30)
-
-# define BLOC_WIDTH		(48)
-# define BLOC_HEIGHT	(16)
-
-# define PLAYER_WIDTH	(96)
-# define PLAYER_HEIGHT	(16)
-# define PLAYER_SPEED	(6)
-
-# define LEVEL_X		(BLOC_WIDTH / 2)
-# define LEVEL_Y		(BLOC_HEIGHT)
-
-# define LEVEL_WIDTH	((GRID_WIDTH) * (BLOC_WIDTH))
-# define LEVEL_HEIGHT	((GRID_HEIGHT) * (BLOC_HEIGHT))
-
-# define WINDOW_WIDTH	(LEVEL_WIDTH + BLOC_WIDTH)
-# define WINDOW_HEIGHT	(LEVEL_HEIGHT + BLOC_HEIGHT)
-
-# define BALL_SPEED		(5)
-# define BALL_RADIUS	(3.0f)
+# define PI					(3.14159265)
+# define BLOC1				(1)
+# define BLOC2				(2)
+# define BLOC3				(3)
+# define NB					(3)
+# define NLEVEL				(3)
+# define GRID_WIDTH			(15)
+# define GRID_HEIGHT		(30)
+# define BLOC_WIDTH			(48)
+# define BLOC_HEIGHT		(16)
+# define PLAYER_WIDTH		(96)
+# define PLAYER_HEIGHT		(16)
+# define PLAYER_SPEED		(6)
+# define LEVEL_X			(BLOC_WIDTH / 2)
+# define LEVEL_Y			(BLOC_HEIGHT)
+# define LEVEL_WIDTH		((GRID_WIDTH) * (BLOC_WIDTH))
+# define LEVEL_HEIGHT		((GRID_HEIGHT) * (BLOC_HEIGHT))
+# define SCORE_WIDTH		(220)
+# define WINDOW_WIDTH		(LEVEL_WIDTH + BLOC_WIDTH + SCORE_WIDTH)
+# define WINDOW_HEIGHT		(LEVEL_HEIGHT + BLOC_HEIGHT)
+# define BALL_SPEED			(5)
+# define BALL_RADIUS		(3.0f)
 
 typedef struct			s_vec
 {

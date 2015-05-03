@@ -73,8 +73,8 @@ void		set_vec(t_vec *v, float x, float y)
 void		init_player(t_core *c)
 {
 	c->player.lives = 3;
-	c->player.x = (WINDOW_WIDTH / 2) - (PLAYER_WIDTH / 2);
-	c->player.y = WINDOW_HEIGHT - BLOC_HEIGHT * 2;
+	c->player.x = (LEVEL_WIDTH / 2) - (PLAYER_WIDTH / 2);
+	c->player.y = LEVEL_HEIGHT - BLOC_HEIGHT;
 }
 
 void		init_ui(t_core *c)
@@ -102,18 +102,18 @@ void		init_left_border(t_border *b)
 {
 	init_color(b->c, 0.6f, 0.6f, 0.6f);
 	b->x = 0;
-	b->y = 0;
+	b->y = BLOC_HEIGHT;
 	b->w = BLOC_WIDTH / 2;
-	b->h = WINDOW_HEIGHT;
+	b->h = LEVEL_HEIGHT;
 }
 
 void		init_right_border(t_border *b)
 {
 	init_color(b->c, 0.6f, 0.6f, 0.6f);
-	b->x = WINDOW_WIDTH - BLOC_WIDTH / 2;
-	b->y = 0;
+	b->x = LEVEL_WIDTH + BLOC_WIDTH / 2;
+	b->y = BLOC_HEIGHT;
 	b->w = BLOC_WIDTH / 2;
-	b->h = WINDOW_HEIGHT;
+	b->h = LEVEL_HEIGHT;
 }
 
 void		init_up_border(t_border *b)
@@ -121,7 +121,7 @@ void		init_up_border(t_border *b)
 	init_color(b->c, 0.6f, 0.6f, 0.6f);
 	b->x = 0;
 	b->y = 0;
-	b->w = WINDOW_WIDTH;
+	b->w = LEVEL_WIDTH + BLOC_WIDTH;
 	b->h = BLOC_HEIGHT;
 }
 
@@ -313,11 +313,11 @@ void		new_ball_direction(t_circle *c, float x, float y)
 */
 void		update_ball(t_core *c)
 {
-	int					x;
-	int					y;
+	// int					x;
+	// int					y;
 
-	x = c->ball.c.p.x / BLOC_WIDTH - 1;
-	y = c->ball.c.p.y / BLOC_HEIGHT - 1;
+	// x = c->ball.c.p.x / BLOC_WIDTH - 1;
+	// y = c->ball.c.p.y / BLOC_HEIGHT - 1;
 /*	dprintf(2, "x: %d, y: %d\n", x, y);
 	if (x > 0 && y > 0 && x < GRID_WIDTH && y < GRID_HEIGHT)
 		draw_bloc_borders(LEVEL_X + x * BLOC_WIDTH, LEVEL_Y + y * BLOC_HEIGHT);*/

@@ -7,7 +7,7 @@
 # define BLOC1				(1)
 # define BLOC2				(2)
 # define BLOC3				(3)
-# define NB					(3)
+# define NB					(4)
 # define NLEVEL				(3)
 # define GRID_WIDTH			(15)
 # define GRID_HEIGHT		(30)
@@ -28,6 +28,7 @@
 # define MASS_FACTOR		(0.5)
 # define ANGULAR_FACTOR		(0.3f)
 # define FRICTION			(1.0f)
+# define INI_LIVES			(3)
 
 typedef struct			s_vec
 {
@@ -59,8 +60,6 @@ typedef struct			s_rect
 
 typedef struct			s_bloc
 {
-	float				color[3];
-	int					type;
 	int					life;
 }						t_bloc;
 
@@ -101,6 +100,9 @@ typedef struct			s_border
 
 typedef struct			s_core
 {
+	int					current_blocks;
+	int					game_over;
+	int					lives;
 	t_font				*rdf;
 	int					score;
 	GLFWwindow			*window;

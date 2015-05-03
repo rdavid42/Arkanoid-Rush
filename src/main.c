@@ -241,6 +241,18 @@ int			init_font(t_core *c)
 	return (1);
 }
 
+void		init_core(t_core *c)
+{
+	c->score = 0;
+	c->cl = 0;
+	c->lives = INI_LIVES;
+	c->game_over = 0;
+	init_player(c);
+	init_ui(c);
+	init_ball(c);
+	init_borders(c);
+}
+
 int			init(t_core *c)
 {
 	if (!glfwInit())
@@ -255,13 +267,8 @@ int			init(t_core *c)
 	glfwMakeContextCurrent(c->window);
 	glfwSwapInterval(1);
 	glfwSetKeyCallback(c->window, key_callback);
-	c->score = 0;
-	c->cl = 0;
 	c->levels = NULL;
-	init_player(c);
-	init_ui(c);
-	init_ball(c);
-	init_borders(c);
+	init_core(c);
 	if (!init_font(c))
 		return (0);
 	if (!init_levels(c))
@@ -310,27 +317,14 @@ int			check_line_errors(char *line)
 void		fill_level_line(t_bloc *bline, char *line)
 {
 	int					i;
-	int					id;
-	static float const	c[NB][3] =
 
-	{ { 1.0f, 0.0f, 0.0f }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 0.0f, 1.0f } };
 	i = -1;
 	while (++i < GRID_WIDTH)
 	{
 		if (line[i] != '.')
-		{
-			id = line[i] - 48;
-			bline[i].color[0] = c[id - 1][0];
-			bline[i].color[1] = c[id - 1][1];
-			bline[i].color[2] = c[id - 1][2];
-			bline[i].type = id;
-			bline[i].life = id;
-		}
+			bline[i].life = line[i] - 48;
 		else
-		{
-			bline[i].type = 0;
 			bline[i].life = 0;
-		}
 	}
 }
 
@@ -349,9 +343,8 @@ int			allocate_level(t_level *l)
 	return (1);
 }
 
-void		draw_bloc(t_bloc *b, float x, float y)
+void		draw_bloc(float x, float y)
 {
-	glColor3f(b->color[0], b->color[1], b->color[2]);
 	glBegin(GL_QUADS);
 	glVertex2f(x + 1, y + 1);
 	glVertex2f(x + BLOC_WIDTH - 2, y + 1);
@@ -362,7 +355,6 @@ void		draw_bloc(t_bloc *b, float x, float y)
 
 void		draw_bloc_borders(float x, float y)
 {
-	glColor3f(1.0f, 1.0f, 1.0f);
 	glBegin(GL_LINES);
 	glVertex2f(x, y);
 	glVertex2f(x + BLOC_WIDTH, y);
@@ -421,34 +413,50 @@ void		new_ball_direction_paddle(t_ball *b)
 	b->d.y = -b->d.y;
 }
 
-int			check_blocks_around(t_core *c, int x, int y)
+int			check_block_return(t_bloc **g, t_core *c, int px, int py)
+{
+	g[py][px].life--;
+	c->score = !g[py][px].life
+				? c->score + 100 : c->score + 150;
+	return (1);
+}
+int			check_block(int x, int y, int i, t_core *c)
 {
 	t_bloc					**g = c->levels[c->cl].grid;
+	int						px;
+	int						py;
 	int						r;
-	int						i;
-	static t_vec			n[4] =
+	static t_vec			n[5] =
 
-	{ {-1, 0}, {1, 0}, {0, 1}, {0, -1} };
+	{ {-1, 0}, {1, 0}, {0, 1}, {0, -1}, {0, 0} };
+	px = x + n[i].x;
+	py = y + n[i].y;
+	if (py >= 0 && py < GRID_HEIGHT && px >= 0 && px < GRID_WIDTH
+		&& g[py][px].life != 0)
+	{
+		r = itrs_block(&c->ball.c, LEVEL_X + px * BLOC_WIDTH,
+						LEVEL_Y + py * BLOC_HEIGHT,
+						BLOC_WIDTH, BLOC_HEIGHT);
+		if (r != -1)
+		{
+			c->ball.d = new_ball_direction(&c->ball, n[r]);
+			return (check_block_return(g, c, px, py));
+		}
+	}
+	return (0);
+}
+
+int			check_blocks_around(t_core *c, int x, int y)
+{
+	int						i;
+
 	if (y >= 0 && x >= 0 && y < GRID_HEIGHT && x < GRID_WIDTH)
 	{
 		i = -1;
-		while (++i < 4)
+		while (++i < 5)
 		{
-			if (y + n[i].y >= 0 && y + n[i].y < GRID_HEIGHT
-				&& x + n[i].x >= 0 && x + n[i].x < GRID_WIDTH
-				&& g[y + (int)n[i].y][x].type != 0)
-			{
-				r = itrs_block(&c->ball.c, LEVEL_X + (x + n[i].x) * BLOC_WIDTH,
-								LEVEL_Y + (y + n[i].y) * BLOC_HEIGHT,
-								BLOC_WIDTH, BLOC_HEIGHT);
-				draw_bloc_borders(LEVEL_X + (x + n[i].x) * BLOC_WIDTH, LEVEL_Y + (y + n[i].y) * BLOC_HEIGHT);
-				if (r != -1)
-				{
-					dprintf(2, "%d", r);
-					c->ball.d = new_ball_direction(&c->ball, n[r]);
-					return (1);
-				}
-			}
+			if (check_block(x, y, i, c))
+				return (1);
 		}
 	}
 	return (0);
@@ -479,6 +487,8 @@ void		update_ball(t_core *c)
 	{ {-1, 0}, {1, 0}, {0, 1}, {0, -1} };
 	x = c->ball.c.p.x / BLOC_WIDTH - 1;
 	y = c->ball.c.p.y / BLOC_HEIGHT - 1;
+	// glColor3f(1.0f, 0.0f, 1.0f);
+	// draw_bloc_borders(LEVEL_X + (x) * BLOC_WIDTH, LEVEL_Y + (y) * BLOC_HEIGHT);
 	if ((r = check_platform(c)) != -1)
 		new_ball_direction_paddle(&c->ball);
 	else if (itrs_v(&c->ball.c, LEVEL_X + LEVEL_WIDTH, LEVEL_Y, LEVEL_HEIGHT))
@@ -488,28 +498,29 @@ void		update_ball(t_core *c)
 	else if (itrs_h(&c->ball.c, LEVEL_X, LEVEL_Y, LEVEL_WIDTH))
 		c->ball.d = new_ball_direction(&c->ball, n[2]);
 	check_blocks_around(c, x, y);
-/*	dprintf(2, "x: %d, y: %d\n", x, y);
-	if (x > 0 && y > 0 && x < GRID_WIDTH && y < GRID_HEIGHT)
-		draw_bloc_borders(LEVEL_X + x * BLOC_WIDTH, LEVEL_Y + y * BLOC_HEIGHT);*/
 	c->ball.c.p.x += c->ball.d.x / 5;
 	c->ball.c.p.y += c->ball.d.y / 5;
 }
 
 void		draw_current_level(t_core *c)
 {
-	int		x;
-	int		y;
+	int						x;
+	int						y;
+	int						i;
+	static float const		cl[NB][3] =
 
+	{ { 1, 0, 0 }, { 0, 1, 0 }, { 0, 0, 1 }, { 0, 1, 1 } };
 	y = -1;
 	while (++y < GRID_HEIGHT)
 	{
 		x = -1;
 		while (++x < GRID_WIDTH)
 		{
-			if (c->levels[c->cl].grid[y][x].type != 0)
+			i = c->levels[c->cl].grid[y][x].life;
+			if (i != 0)
 			{
-				draw_bloc(&c->levels[c->cl].grid[y][x],
-						LEVEL_X + x * BLOC_WIDTH, LEVEL_Y + y * BLOC_HEIGHT);
+				glColor3f(cl[i - 1][0], cl[i - 1][1], cl[i - 1][2]);
+				draw_bloc(LEVEL_X + x * BLOC_WIDTH, LEVEL_Y + y * BLOC_HEIGHT);
 			}
 		}
 	}
@@ -550,6 +561,10 @@ void		draw_ui(t_core *c)
 	draw_text(c->rdf, "SCORE", LEVEL_WIDTH + BLOC_WIDTH + 20, BLOC_HEIGHT);
 	draw_text(c->rdf, itoa(c->score), LEVEL_WIDTH + BLOC_WIDTH + 20,
 									c->rdf->s * c->rdf->ch + 40);
+	draw_text(c->rdf, "LIVES", LEVEL_WIDTH + BLOC_WIDTH + 20,
+									c->rdf->s * c->rdf->ch * 2 + 60);
+	draw_text(c->rdf, itoa(c->lives), LEVEL_WIDTH + BLOC_WIDTH + 20,
+									c->rdf->s * c->rdf->ch * 3 + 80);
 }
 
 void		draw_ball(t_ball *b)
@@ -624,15 +639,40 @@ void		inputs(t_core *c)
 		if (c->player.x + PLAYER_WIDTH <= LEVEL_X + LEVEL_WIDTH - PLAYER_SPEED)
 			c->player.x += PLAYER_SPEED;
 	}
+	if (c->game_over && glfwGetKey(c->window, GLFW_KEY_SPACE) == GLFW_PRESS)
+		init_core(c);
 }
 
 void		update(t_core *c)
 {
 	int		i;
 
-	i = 0;
-	while (++i < 5)
-		update_ball(c);
+	if (!c->game_over)
+	{
+		i = 0;
+		while (++i < 5)
+			update_ball(c);
+		if (c->ball.c.p.x > WINDOW_WIDTH || c->ball.c.p.y > WINDOW_HEIGHT
+			|| c->ball.c.p.x < 0 || c->ball.c.p.y < 0)
+		{
+			c->lives = c->lives - 1 < 0 ? 0 : c->lives - 1;
+			init_ball(c);
+		}
+		if (c->lives <= 0)
+			c->game_over = 1;
+	}
+}
+
+void		draw_game_over(t_core *c)
+{
+	char const	*g = "GAME OVER ! PRESS SPACE OR ESCAPE";
+	int const	l = slen(g);
+	int const	w = l * (c->rdf->cw * c->rdf->s) + (l - 2) * c->rdf->p;
+	int const	h = c->rdf->ch * c->rdf->s;
+
+	(void)c;
+	draw_text(c->rdf, g,
+			WINDOW_WIDTH / 2 - w / 2, WINDOW_HEIGHT / 2 - h / 2);
 }
 
 void		render(t_core *c)
@@ -641,6 +681,8 @@ void		render(t_core *c)
 	draw_current_level(c);
 	draw_player(&c->player);
 	draw_ball(&c->ball);
+	if (c->game_over)
+		draw_game_over(c);
 }
 
 void		loop(t_core *c)

@@ -375,7 +375,7 @@ void		draw_bloc_borders(float x, float y)
 	glEnd();
 }
 
-int			itrs_up(t_circle *c, float x, float y, float s)
+int			itrs_h(t_circle *c, float x, float y, float s)
 {
 	if (c->p.x >= x && c->p.x <= x + s
 		&& c->p.y + c->r > y && c->p.y - c->r < y)
@@ -383,15 +383,7 @@ int			itrs_up(t_circle *c, float x, float y, float s)
 	return (0);
 }
 
-int			itrs_down(t_circle *c, float x, float y, float s)
-{
-	if (c->p.x >= x && c->p.x <= x + s
-		&& c->p.y + c->r < y && c->p.y - c->r > y)
-		return (1);
-	return (0);
-}
-
-int			itrs_left(t_circle *c, float x, float y, float s)
+int			itrs_v(t_circle *c, float x, float y, float s)
 {
 	if (c->p.y >= y && c->p.y <= y + s
 		&& c->p.x + c->r > x && c->p.x - c->r < x)
@@ -399,23 +391,15 @@ int			itrs_left(t_circle *c, float x, float y, float s)
 	return (0);
 }
 
-int			itrs_right(t_circle *c, float x, float y, float s)
-{
-	if (c->p.y >= y && c->p.y <= y + s
-		&& c->p.x - c->r < x && c->p.x + c->r > x)
-		return (1);
-	return (0);
-}
-
 int			itrs_block(t_circle *c, float x, float y, float w, float h)
 {
-	if (itrs_up(c, x, y, w))
-		return (3);
-	if (itrs_down(c, x, y, w))
+	if (itrs_h(c, x, y, w))
 		return (2);
-	if (itrs_right(c, x, y, h))
+	if (itrs_h(c, x, y + BLOC_HEIGHT, w))
+		return (3);
+	if (itrs_v(c, x + BLOC_WIDTH, y, h))
 		return (1);
-	if (itrs_left(c, x, y, h))
+	if (itrs_v(c, x, y, h))
 		return (0);
 	return (-1);
 }
@@ -437,7 +421,7 @@ void		new_ball_direction_paddle(t_ball *b)
 	b->d.y = -b->d.y;
 }
 
-void		check_blocks_around(t_core *c, int x, int y)
+int			check_blocks_around(t_core *c, int x, int y)
 {
 	t_bloc					**g = c->levels[c->cl].grid;
 	int						r;
@@ -457,25 +441,30 @@ void		check_blocks_around(t_core *c, int x, int y)
 				r = itrs_block(&c->ball.c, LEVEL_X + (x + n[i].x) * BLOC_WIDTH,
 								LEVEL_Y + (y + n[i].y) * BLOC_HEIGHT,
 								BLOC_WIDTH, BLOC_HEIGHT);
+				draw_bloc_borders(LEVEL_X + (x + n[i].x) * BLOC_WIDTH, LEVEL_Y + (y + n[i].y) * BLOC_HEIGHT);
 				if (r != -1)
 				{
-					new_ball_direction(&c->ball, n[r]);
-					break ;
+					dprintf(2, "%d", r);
+					c->ball.d = new_ball_direction(&c->ball, n[r]);
+					return (1);
 				}
 			}
 		}
 	}
+	return (0);
 }
 
 int			check_platform(t_core *c)
 {
-	if (itrs_left(&c->ball.c, c->player.x, c->player.y, PLAYER_HEIGHT))
+	if (itrs_v(&c->ball.c, c->player.x, c->player.y, PLAYER_HEIGHT))
 		return (0);
-	else if (itrs_right(&c->ball.c, c->player.x, c->player.y, PLAYER_HEIGHT))
+	else if (itrs_v(&c->ball.c, c->player.x + PLAYER_WIDTH,
+					c->player.y, PLAYER_HEIGHT))
 		return (1);
-	else if (itrs_down(&c->ball.c, c->player.x, c->player.y, PLAYER_WIDTH))
+	else if (itrs_h(&c->ball.c, c->player.x, c->player.y + PLAYER_HEIGHT,
+					PLAYER_WIDTH))
 		return (2);
-	else if (itrs_up(&c->ball.c, c->player.x, c->player.y, PLAYER_WIDTH))
+	else if (itrs_h(&c->ball.c, c->player.x, c->player.y, PLAYER_WIDTH))
 		return (3);
 	return (-1);
 }
@@ -492,18 +481,18 @@ void		update_ball(t_core *c)
 	y = c->ball.c.p.y / BLOC_HEIGHT - 1;
 	if ((r = check_platform(c)) != -1)
 		new_ball_direction_paddle(&c->ball);
-	check_blocks_around(c, x, y);
-	if (itrs_left(&c->ball.c, LEVEL_X + LEVEL_WIDTH, LEVEL_Y, LEVEL_HEIGHT))
+	else if (itrs_v(&c->ball.c, LEVEL_X + LEVEL_WIDTH, LEVEL_Y, LEVEL_HEIGHT))
 		c->ball.d = new_ball_direction(&c->ball, n[0]);
-	else if (itrs_right(&c->ball.c, LEVEL_X, LEVEL_Y, LEVEL_HEIGHT))
+	else if (itrs_v(&c->ball.c, LEVEL_X, LEVEL_Y, LEVEL_HEIGHT))
 		c->ball.d = new_ball_direction(&c->ball, n[1]);
-	else if (itrs_up(&c->ball.c, LEVEL_X, LEVEL_Y, LEVEL_WIDTH))
+	else if (itrs_h(&c->ball.c, LEVEL_X, LEVEL_Y, LEVEL_WIDTH))
 		c->ball.d = new_ball_direction(&c->ball, n[2]);
+	check_blocks_around(c, x, y);
 /*	dprintf(2, "x: %d, y: %d\n", x, y);
 	if (x > 0 && y > 0 && x < GRID_WIDTH && y < GRID_HEIGHT)
 		draw_bloc_borders(LEVEL_X + x * BLOC_WIDTH, LEVEL_Y + y * BLOC_HEIGHT);*/
-	c->ball.c.p.x += c->ball.d.x;
-	c->ball.c.p.y += c->ball.d.y;
+	c->ball.c.p.x += c->ball.d.x / 5;
+	c->ball.c.p.y += c->ball.d.y / 5;
 }
 
 void		draw_current_level(t_core *c)
@@ -639,7 +628,11 @@ void		inputs(t_core *c)
 
 void		update(t_core *c)
 {
-	update_ball(c);
+	int		i;
+
+	i = 0;
+	while (++i < 5)
+		update_ball(c);
 }
 
 void		render(t_core *c)

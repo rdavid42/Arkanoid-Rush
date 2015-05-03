@@ -88,16 +88,22 @@ t_font		*load_font(char *filename)
 	return (nf);
 }
 
+void		draw_letter_quad(float x, float y, float s)
+{
+	glVertex2f(x, y);
+	glVertex2f(x + s, y);
+	glVertex2f(x + s, y + s);
+	glVertex2f(x, y + s);
+}
+
 void		draw_text(t_font *f, char const *t, float x, float y)
 {
 	int		i;
 	int		j;
-	int		px;
-	int		py;
+	float	px;
 
 	glBegin(GL_QUADS);
 	px = x;
-	py = y;
 	while (*t)
 	{
 		j = -1;
@@ -107,12 +113,7 @@ void		draw_text(t_font *f, char const *t, float x, float y)
 			while (++i < f->cw)
 			{
 				if (f->c[(unsigned char)*t][j][i] == '#')
-				{
-					glVertex2f(px + i * f->s, py + j * f->s);
-					glVertex2f(px + i * f->s + f->s, py + j * f->s);
-					glVertex2f(px + i * f->s + f->s, py + j * f->s + f->s);
-					glVertex2f(px + i * f->s, py + j * f->s + f->s);
-				}
+					draw_letter_quad(px + i * f->s, y + j * f->s, f->s);
 			}
 		}
 		++t;
@@ -472,6 +473,10 @@ void		draw_player(t_player *p)
 void		draw_ui(t_core *c)
 {
 	draw_borders(c->b, 3);
+	glColor3f(1.0f, 1.0f, 1.0f);
+	draw_text(c->rdf, "SCORE", LEVEL_WIDTH + BLOC_WIDTH + 20, BLOC_HEIGHT);
+	draw_text(c->rdf, itoa(c->score), LEVEL_WIDTH + BLOC_WIDTH + 20,
+									c->rdf->s * c->rdf->ch + 40);
 }
 
 void		draw_ball(t_ball *b)
@@ -559,8 +564,6 @@ void		render(t_core *c)
 	draw_current_level(c);
 	draw_player(&c->player);
 	draw_ball(&c->ball);
-	glColor3f(1.0f, 1.0f, 1.0f);
-	draw_text(c->rdf, "SCORE", LEVEL_WIDTH + BLOC_WIDTH + 20, BLOC_HEIGHT);
 }
 
 void		loop(t_core *c)

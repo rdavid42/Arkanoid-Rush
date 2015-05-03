@@ -23,8 +23,11 @@
 # define SCORE_WIDTH		(220)
 # define WINDOW_WIDTH		(LEVEL_WIDTH + BLOC_WIDTH + SCORE_WIDTH)
 # define WINDOW_HEIGHT		(LEVEL_HEIGHT + BLOC_HEIGHT)
-# define BALL_SPEED			(5)
+# define BALL_INI_SPEED		(4)
 # define BALL_RADIUS		(3.0f)
+# define MASS_FACTOR		(0.5)
+# define ANGULAR_FACTOR		(0.3f)
+# define FRICTION			(1.0f)
 
 typedef struct			s_vec
 {
@@ -78,7 +81,7 @@ typedef struct			s_player
 typedef struct			s_ball
 {
 	t_circle			c;
-	t_vec				v;
+	t_vec				d;
 }						t_ball;
 
 typedef struct			s_ui

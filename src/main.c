@@ -34,6 +34,11 @@ void		key_callback(GLFWwindow *window, int key, int scancode,
 		glfwSetWindowShouldClose(window, GL_TRUE);
 }
 
+float		dot_product(t_vec const *v1, t_vec const *v2)
+{
+	return (v1->x * v2->x + v1->y * v2->y);
+}
+
 int			fill_font_letter(t_font *f, unsigned char l, char *buf)
 {
 	int		x;
@@ -158,6 +163,15 @@ void		set_vec(t_vec *v, float x, float y)
 	v->y = y;
 }
 
+t_vec		get_vec(float x, float y)
+{
+	t_vec	n;
+
+	n.x = x;
+	n.y = y;
+	return (n);
+}
+
 void		init_player(t_core *c)
 {
 	c->player.lives = 3;
@@ -176,7 +190,7 @@ void		init_ball(t_core *c)
 	c->ball.c.r = BALL_RADIUS;
 	c->ball.c.p.x = c->player.x + PLAYER_WIDTH / 2;
 	c->ball.c.p.y = c->player.y - c->ball.c.r;
-	set_vec(&c->ball.v, BALL_SPEED, -BALL_SPEED);
+	set_vec(&c->ball.d, BALL_INI_SPEED, -BALL_INI_SPEED);
 }
 
 void		init_color(float *c, float r, float g, float b)
@@ -361,7 +375,7 @@ void		draw_bloc_borders(float x, float y)
 	glEnd();
 }
 
-int			intersect_up(t_circle *c, float x, float y, float s)
+int			itrs_up(t_circle *c, float x, float y, float s)
 {
 	if (c->p.x >= x && c->p.x <= x + s
 		&& c->p.y + c->r > y && c->p.y - c->r < y)
@@ -369,7 +383,7 @@ int			intersect_up(t_circle *c, float x, float y, float s)
 	return (0);
 }
 
-int			intersect_down(t_circle *c, float x, float y, float s)
+int			itrs_down(t_circle *c, float x, float y, float s)
 {
 	if (c->p.x >= x && c->p.x <= x + s
 		&& c->p.y + c->r < y && c->p.y - c->r > y)
@@ -377,7 +391,7 @@ int			intersect_down(t_circle *c, float x, float y, float s)
 	return (0);
 }
 
-int			intersect_left(t_circle *c, float x, float y, float s)
+int			itrs_left(t_circle *c, float x, float y, float s)
 {
 	if (c->p.y >= y && c->p.y <= y + s
 		&& c->p.x + c->r > x && c->p.x - c->r < x)
@@ -385,41 +399,111 @@ int			intersect_left(t_circle *c, float x, float y, float s)
 	return (0);
 }
 
-int			intersect_right(t_circle *c, float x, float y, float s)
+int			itrs_right(t_circle *c, float x, float y, float s)
 {
 	if (c->p.y >= y && c->p.y <= y + s
-		&& c->p.x + c->r < x && c->p.x - c->r > x)
+		&& c->p.x - c->r < x && c->p.x + c->r > x)
 		return (1);
 	return (0);
 }
 
-int			intersect_block(t_circle *c, float x, float y, float s)
+int			itrs_block(t_circle *c, float x, float y, float w, float h)
 {
-	if (intersect_up(c, x, y, s)
-		|| intersect_down(c, x, y, s)
-		|| intersect_left(c, x, y, s)
-		|| intersect_right(c, x, y, s))
+	if (itrs_up(c, x, y, w))
+		return (3);
+	if (itrs_down(c, x, y, w))
+		return (2);
+	if (itrs_right(c, x, y, h))
 		return (1);
-	return (0);
+	if (itrs_left(c, x, y, h))
+		return (0);
+	return (-1);
 }
-/*
-void		new_ball_direction(t_circle *c, float x, float y)
-{
 
+t_vec		new_ball_direction(t_ball *b, t_vec const n)
+{
+	t_vec	new;
+	float	dp;
+
+	dp = -dot_product(&n, &b->d);
+	new.x = b->d.x + (2 * n.x * dp);
+	new.y = b->d.y + (2 * n.y * dp);
+	return (new);
 }
-*/
+
+void		new_ball_direction_paddle(t_ball *b)
+{
+	b->d.x += (1 - ANGULAR_FACTOR) * PLAYER_SPEED * MASS_FACTOR * FRICTION;
+	b->d.y = -b->d.y;
+}
+
+void		check_blocks_around(t_core *c, int x, int y)
+{
+	t_bloc					**g = c->levels[c->cl].grid;
+	int						r;
+	int						i;
+	static t_vec			n[4] =
+
+	{ {-1, 0}, {1, 0}, {0, 1}, {0, -1} };
+	if (y >= 0 && x >= 0 && y < GRID_HEIGHT && x < GRID_WIDTH)
+	{
+		i = -1;
+		while (++i < 4)
+		{
+			if (y + n[i].y >= 0 && y + n[i].y < GRID_HEIGHT
+				&& x + n[i].x >= 0 && x + n[i].x < GRID_WIDTH
+				&& g[y + (int)n[i].y][x].type != 0)
+			{
+				r = itrs_block(&c->ball.c, LEVEL_X + (x + n[i].x) * BLOC_WIDTH,
+								LEVEL_Y + (y + n[i].y) * BLOC_HEIGHT,
+								BLOC_WIDTH, BLOC_HEIGHT);
+				if (r != -1)
+				{
+					new_ball_direction(&c->ball, n[r]);
+					break ;
+				}
+			}
+		}
+	}
+}
+
+int			check_platform(t_core *c)
+{
+	if (itrs_left(&c->ball.c, c->player.x, c->player.y, PLAYER_HEIGHT))
+		return (0);
+	else if (itrs_right(&c->ball.c, c->player.x, c->player.y, PLAYER_HEIGHT))
+		return (1);
+	else if (itrs_down(&c->ball.c, c->player.x, c->player.y, PLAYER_WIDTH))
+		return (2);
+	else if (itrs_up(&c->ball.c, c->player.x, c->player.y, PLAYER_WIDTH))
+		return (3);
+	return (-1);
+}
+
 void		update_ball(t_core *c)
 {
-	// int					x;
-	// int					y;
+	int						x;
+	int						y;
+	int						r;
+	static t_vec			n[4] =
 
-	// x = c->ball.c.p.x / BLOC_WIDTH - 1;
-	// y = c->ball.c.p.y / BLOC_HEIGHT - 1;
+	{ {-1, 0}, {1, 0}, {0, 1}, {0, -1} };
+	x = c->ball.c.p.x / BLOC_WIDTH - 1;
+	y = c->ball.c.p.y / BLOC_HEIGHT - 1;
+	if ((r = check_platform(c)) != -1)
+		new_ball_direction_paddle(&c->ball);
+	check_blocks_around(c, x, y);
+	if (itrs_left(&c->ball.c, LEVEL_X + LEVEL_WIDTH, LEVEL_Y, LEVEL_HEIGHT))
+		c->ball.d = new_ball_direction(&c->ball, n[0]);
+	else if (itrs_right(&c->ball.c, LEVEL_X, LEVEL_Y, LEVEL_HEIGHT))
+		c->ball.d = new_ball_direction(&c->ball, n[1]);
+	else if (itrs_up(&c->ball.c, LEVEL_X, LEVEL_Y, LEVEL_WIDTH))
+		c->ball.d = new_ball_direction(&c->ball, n[2]);
 /*	dprintf(2, "x: %d, y: %d\n", x, y);
 	if (x > 0 && y > 0 && x < GRID_WIDTH && y < GRID_HEIGHT)
 		draw_bloc_borders(LEVEL_X + x * BLOC_WIDTH, LEVEL_Y + y * BLOC_HEIGHT);*/
-	c->ball.c.p.x += c->ball.v.x;
-	c->ball.c.p.y += c->ball.v.y;
+	c->ball.c.p.x += c->ball.d.x;
+	c->ball.c.p.y += c->ball.d.y;
 }
 
 void		draw_current_level(t_core *c)

@@ -34,6 +34,93 @@ void		key_callback(GLFWwindow *window, int key, int scancode,
 		glfwSetWindowShouldClose(window, GL_TRUE);
 }
 
+int			fill_font_letter(t_font *f, unsigned char l, char *buf)
+{
+	int		x;
+	int		y;
+
+	y = -1;
+	while (++y < f->ch)
+	{
+		x = -1;
+		while (++x < f->cw)
+			f->c[l][y][x] = buf[y * (f->cw + 1) + x];
+	}
+	return (1);
+}
+
+int			parse_font(t_font *f, char *n)
+{
+	int const		lsize = f->cw * f->ch + f->ch;
+	char			p[2];
+	char			l[lsize];
+	int				fd;
+	int				e[2];
+
+	if ((fd = open(n, O_RDONLY, 0755)) == -1)
+		return (0);
+	while (42)
+	{
+		e[0] = read(fd, p, 2);
+		e[1] = read(fd, l, lsize);
+		if (e[0] == -1 || e[1] == -1)
+			return (close(fd));
+		if (!e[0] || !e[1] || e[0] != 2 || e[1] != lsize)
+			break;
+		if (!fill_font_letter(f, p[0], l))
+			return (close(fd));
+	}
+	return (!close(fd));
+}
+
+t_font		*load_font(char *filename)
+{
+	t_font	*nf;
+
+	if (!(nf = malloc(sizeof(t_font))))
+		return (NULL);
+	nf->cw = 5;
+	nf->ch = 5;
+	nf->s = 5;
+	nf->p = 2;
+	if (!parse_font(nf, filename))
+		return (NULL);
+	return (nf);
+}
+
+void		draw_text(t_font *f, char const *t, float x, float y)
+{
+	int		i;
+	int		j;
+	int		px;
+	int		py;
+
+	glBegin(GL_QUADS);
+	px = x;
+	py = y;
+	while (*t)
+	{
+		j = -1;
+		while (++j < f->ch)
+		{
+			i = -1;
+			while (++i < f->cw)
+			{
+				if (f->c[(unsigned char)*t][j][i] == '#')
+				{
+					glVertex2f(px + i * f->s, py + j * f->s);
+					glVertex2f(px + i * f->s + f->s, py + j * f->s);
+					glVertex2f(px + i * f->s + f->s, py + j * f->s + f->s);
+					glVertex2f(px + i * f->s, py + j * f->s + f->s);
+				}
+			}
+		}
+		++t;
+		px += f->cw * f->s + f->p;
+	}
+	glEnd();
+}
+
 void		release_resources(t_core *c)
 {
 	glfwDestroyWindow(c->window);
@@ -132,6 +219,13 @@ void		init_borders(t_core *c)
 	init_up_border(&c->b[2]);
 }
 
+int			init_font(t_core *c)
+{
+	if (!(c->rdf = load_font("font.rdf")))
+		return (!write(2, "Failed to load font !\n", 22));
+	return (1);
+}
+
 int			init(t_core *c)
 {
 	if (!glfwInit())
@@ -153,6 +247,8 @@ int			init(t_core *c)
 	init_ui(c);
 	init_ball(c);
 	init_borders(c);
+	if (!init_font(c))
+		return (0);
 	if (!init_levels(c))
 		return (0);
 	return (1);
@@ -405,16 +501,16 @@ int			load_level(t_core *c, char const *name, int l)
 	{
 		ret = read(fd, buf, GRID_WIDTH + 1);
 		if (buf[GRID_WIDTH] != '\n')
-			return (0);
+			return (close(fd));
 		if (ret == -1)
-			return (0);
+			return (close(fd));
 		if (ret == 0)
-			return (1);
+			return (!close(fd));
 		if (!check_line_errors(buf))
-			return (0);
+			return (close(fd));
 		fill_level_line(c->levels[l].grid[i], buf);
 	}
-	return (1);
+	return (!close(fd));
 }
 
 int			init_levels(t_core *c)
@@ -463,6 +559,8 @@ void		render(t_core *c)
 	draw_current_level(c);
 	draw_player(&c->player);
 	draw_ball(&c->ball);
+	glColor3f(1.0f, 1.0f, 1.0f);
+	draw_text(c->rdf, "SCORE", LEVEL_WIDTH + BLOC_WIDTH + 20, BLOC_HEIGHT);
 }
 
 void		loop(t_core *c)

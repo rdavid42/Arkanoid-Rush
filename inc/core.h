@@ -32,6 +32,15 @@ typedef struct			s_vec
 	float				y;
 }						t_vec;
 
+typedef struct			s_font
+{
+	unsigned char		c[128][5][5];
+	int					cw;
+	int					ch;
+	int					s;
+	int					p;
+}						t_font;
+
 typedef struct			s_circle
 {
 	t_vec				p;
@@ -89,6 +98,7 @@ typedef struct			s_border
 
 typedef struct			s_core
 {
+	t_font				*rdf;
 	int					score;
 	GLFWwindow			*window;
 	int					cl;
